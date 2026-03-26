@@ -107,24 +107,24 @@ Please update your records accordingly.</p>
 
   const payload = {
     to: {
-      name: params.toName,
-      address_line1: params.toLine1,
-      ...(params.toLine2 ? { address_line2: params.toLine2 } : {}),
+      companyName: params.toName,
+      addressLine1: params.toLine1,
+      ...(params.toLine2 ? { addressLine2: params.toLine2 } : {}),
       city: params.toCity,
-      province_or_state: params.toState,
-      postal_or_zip: params.toPostcode,
-      country_code: 'AU',
+      provinceOrState: params.toState,
+      postalOrZip: params.toPostcode,
+      countryCode: 'AU',
     },
     from: {
-      name: 'WrongAddy Notifications',
-      address_line1: 'GPO Box 9977',
+      companyName: 'WrongAddy Notifications',
+      addressLine1: 'GPO Box 9977',
       city: 'Sydney',
-      province_or_state: 'NSW',
-      postal_or_zip: '2001',
-      country_code: 'AU',
+      provinceOrState: 'NSW',
+      postalOrZip: '2001',
+      countryCode: 'AU',
     },
     html: letterHtml,
-    size: 'us_letter',
+    size: 'a4',
     description: `Undeliverable mail notice for ${params.recipientName}`,
   };
 
