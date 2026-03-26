@@ -87,10 +87,7 @@ async function sendLetter(params: {
   recipientName: string;
   deliveryAddress: string;
 }): Promise<{ providerId: string; costAud: number }> {
-  const isLive = process.env['POSTGRID_ENV'] === 'live';
-  const apiKey = isLive
-    ? process.env['POSTGRID_LIVE_API_KEY']
-    : process.env['POSTGRID_TEST_API_KEY'];
+  const apiKey = process.env['POSTGRID_TEST_API_KEY'];
   if (!apiKey) throw new Error('Missing POSTGRID API KEY');
 
   const letterHtml = `
