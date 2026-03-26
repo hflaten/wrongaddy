@@ -74,20 +74,7 @@ async function sendEmail(params: {
   return { providerId: data.id };
 }
 
-// ─── Country normaliser (Lob requires ISO-3166 alpha-2) ────────────────────
-const COUNTRY_MAP: Record<string, string> = {
-  'australia': 'AU', 'AU': 'AU', 'AUS': 'AU',
-  'united states': 'US', 'usa': 'US', 'US': 'US',
-  'united kingdom': 'GB', 'uk': 'GB', 'GB': 'GB',
-  'new zealand': 'NZ', 'NZ': 'NZ',
-};
-
-function normaliseCountry(raw: string): string {
-  const key = raw.trim().toLowerCase();
-  return COUNTRY_MAP[key] ?? COUNTRY_MAP[raw.trim()] ?? raw.trim().toUpperCase().slice(0, 2);
-}
-
-// ─── Physical Letter via Lob ───────────────────────────────────────────────
+// ─── Physical Letter via PostGrid ──────────────────────────────────────────
 
 async function sendLetter(params: {
   toName: string;
@@ -99,9 +86,12 @@ async function sendLetter(params: {
   toCountry: string;
   recipientName: string;
   deliveryAddress: string;
-}): Promise<{ providerId: string; costUsd: number }> {
-  const apiKey = process.env['LOB_API_KEY'];
-  if (!apiKey) throw new Error('Missing LOB_API_KEY');
+}): Promise<{ providerId: string; costAud: number }> {
+  const isLive = process.env['NODE_ENV'] === 'production';
+  const apiKey = isLive
+    ? process.env['POSTGRID_LIVE_API_KEY']
+    : process.env['POSTGRID_TEST_API_KEY'];
+  if (!apiKey) throw new Error('Missing POSTGRID API KEY');
 
   const letterHtml = `
 <!DOCTYPE html>
@@ -116,39 +106,40 @@ Please update your records accordingly.</p>
 </body></html>`;
 
   const payload = {
-    description: `Undeliverable mail notice for ${params.recipientName}`,
     to: {
       name: params.toName,
       address_line1: params.toLine1,
       ...(params.toLine2 ? { address_line2: params.toLine2 } : {}),
-      address_city: params.toCity,
-      address_state: params.toState,
-      address_zip: params.toPostcode,
-      address_country: normaliseCountry(params.toCountry),
+      city: params.toCity,
+      province_or_state: params.toState,
+      postal_or_zip: params.toPostcode,
+      country_code: 'AU',
     },
     from: {
       name: 'WrongAddy Notifications',
-      address_line1: '228 Park Ave S',
-      address_line2: 'PMB 50001',
-      address_city: 'New York',
-      address_state: 'NY',
-      address_zip: '10003',
-      address_country: 'US',
+      address_line1: 'GPO Box 9977',
+      city: 'Sydney',
+      province_or_state: 'NSW',
+      postal_or_zip: '2001',
+      country_code: 'AU',
     },
-    file: letterHtml,
-    color: false,
+    html: letterHtml,
+    size: 'us_letter',
+    description: `Undeliverable mail notice for ${params.recipientName}`,
   };
 
-  const response = await axios.post<{ id: string; price: number }>(
-    'https://api.lob.com/v1/letters',
+  const response = await axios.post<{ id: string; price?: number }>(
+    'https://api.postgrid.com/print-mail/v1/letters',
     payload,
     {
-      auth: { username: apiKey, password: '' },
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
     }
   );
 
-  return { providerId: response.data.id, costUsd: response.data.price };
+  return { providerId: response.data.id, costAud: response.data.price ?? 3.50 };
 }
 
 // ─── Decision logic ────────────────────────────────────────────────────────
@@ -214,7 +205,7 @@ export async function dispatchNotification(params: {
         status = 'sent';
       } else {
         method = 'letter';
-        provider = 'lob';
+        provider = 'postgrid';
         const result = await sendLetter({
           toName: senderName,
           toLine1: sender_address.line1 ?? '',
@@ -227,7 +218,7 @@ export async function dispatchNotification(params: {
           deliveryAddress: deliveryAddressFull,
         });
         providerId = result.providerId;
-        costAud = result.costUsd * 1.55;
+        costAud = result.costAud;
         status = 'sent';
       }
 
@@ -244,7 +235,7 @@ export async function dispatchNotification(params: {
         status = 'sent';
       } else {
         method = 'letter';
-        provider = 'lob';
+        provider = 'postgrid';
         const result = await sendLetter({
           toName: senderName,
           toLine1: sender_address.line1 ?? '',
@@ -257,7 +248,7 @@ export async function dispatchNotification(params: {
           deliveryAddress: deliveryAddressFull,
         });
         providerId = result.providerId;
-        costAud = result.costUsd * 1.55;
+        costAud = result.costAud;
         status = 'sent';
       }
 
