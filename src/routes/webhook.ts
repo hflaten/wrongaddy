@@ -83,9 +83,11 @@ async function processMessage(
     .single();
 
   if (existing) {
-    console.log(`Duplicate message ${message.id} — skipping`);
+    console.log(`[webhook] Duplicate message ${message.id} — skipping`);
     return;
   }
+
+  console.log(`[webhook] Processing image message ${message.id} from ${senderPhone}`);
 
   // Resolve or create property manager
   const pm = await resolvePropertyManager(senderPhone, contactName);
@@ -195,6 +197,8 @@ async function processMessage(
     extraction.sender_address.sender_name,
     [extraction.sender_address.line1, extraction.sender_address.suburb].filter(Boolean).join(' ')
   );
+  console.log(`[webhook] Institutional sender match: ${institutionalSender?.name ?? 'none'}`);
+  console.log(`[webhook] Sender name: ${extraction.sender_address.sender_name}, address: ${extraction.sender_address.line1}`);
 
   // Dispatch notification
   await dispatchNotification({
@@ -202,6 +206,7 @@ async function processMessage(
     extraction,
     institutionalSender,
   });
+  console.log(`[webhook] Notification dispatched for mail_event ${mailEvent.id}`);
 
   // Send confirmation back to PM
   const recipientName = extraction.delivery_address.recipient_name ?? 'the former resident';
