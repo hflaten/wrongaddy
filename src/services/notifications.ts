@@ -5,6 +5,7 @@
 import { Resend } from 'resend';
 import axios from 'axios';
 import { supabase } from '../lib/supabase.js';
+import { findSenderEmail } from './emailFinder.js';
 import type { InstitutionalSender, NotificationMethod } from '../types/index.js';
 import type { EnvelopeExtraction } from '../types/index.js';
 
@@ -186,46 +187,65 @@ export async function dispatchNotification(params: {
       status = 'sent';
 
     // Priority 2: institutional sender with letter-only contact
+    // → run email finder agent first to avoid physical letter
     } else if (institutionalSender?.contact_method === 'letter' && hasSenderAddress(sender_address)) {
-      method = 'letter';
-      provider = 'lob';
+      const found = await findSenderEmail(sender_address.sender_name, sender_address.line1);
 
-      const result = await sendLetter({
-        toName: senderName,
-        toLine1: sender_address.line1 ?? '',
-        toLine2: sender_address.line2,
-        toCity: sender_address.suburb ?? '',
-        toState: sender_address.state ?? '',
-        toPostcode: sender_address.postcode ?? '',
-        toCountry: sender_address.country ?? 'AU',
-        recipientName,
-        deliveryAddress: deliveryAddressFull,
-      });
+      if (found.email && found.confidence === 'high') {
+        method = 'email';
+        recipientEmail = found.email;
+        provider = 'resend';
+        const result = await sendEmail({ to: found.email, senderName, recipientName, deliveryAddress: deliveryAddressFull });
+        providerId = result.providerId;
+        status = 'sent';
+      } else {
+        method = 'letter';
+        provider = 'lob';
+        const result = await sendLetter({
+          toName: senderName,
+          toLine1: sender_address.line1 ?? '',
+          toLine2: sender_address.line2,
+          toCity: sender_address.suburb ?? '',
+          toState: sender_address.state ?? '',
+          toPostcode: sender_address.postcode ?? '',
+          toCountry: sender_address.country ?? 'AU',
+          recipientName,
+          deliveryAddress: deliveryAddressFull,
+        });
+        providerId = result.providerId;
+        costAud = result.costUsd * 1.55;
+        status = 'sent';
+      }
 
-      providerId = result.providerId;
-      costAud = result.costUsd * 1.55; // approximate AUD conversion
-      status = 'sent';
-
-    // Priority 3: unknown sender with full postal address → send letter
+    // Priority 3: unknown sender → run email finder agent, only letter as last resort
     } else if (hasSenderAddress(sender_address)) {
-      method = 'letter';
-      provider = 'lob';
+      const found = await findSenderEmail(sender_address.sender_name, sender_address.line1);
 
-      const result = await sendLetter({
-        toName: senderName,
-        toLine1: sender_address.line1 ?? '',
-        toLine2: sender_address.line2,
-        toCity: sender_address.suburb ?? '',
-        toState: sender_address.state ?? '',
-        toPostcode: sender_address.postcode ?? '',
-        toCountry: sender_address.country ?? 'AU',
-        recipientName,
-        deliveryAddress: deliveryAddressFull,
-      });
-
-      providerId = result.providerId;
-      costAud = result.costUsd * 1.55;
-      status = 'sent';
+      if (found.email && found.confidence === 'high') {
+        method = 'email';
+        recipientEmail = found.email;
+        provider = 'resend';
+        const result = await sendEmail({ to: found.email, senderName, recipientName, deliveryAddress: deliveryAddressFull });
+        providerId = result.providerId;
+        status = 'sent';
+      } else {
+        method = 'letter';
+        provider = 'lob';
+        const result = await sendLetter({
+          toName: senderName,
+          toLine1: sender_address.line1 ?? '',
+          toLine2: sender_address.line2,
+          toCity: sender_address.suburb ?? '',
+          toState: sender_address.state ?? '',
+          toPostcode: sender_address.postcode ?? '',
+          toCountry: sender_address.country ?? 'AU',
+          recipientName,
+          deliveryAddress: deliveryAddressFull,
+        });
+        providerId = result.providerId;
+        costAud = result.costUsd * 1.55;
+        status = 'sent';
+      }
 
     } else {
       // No actionable contact info
