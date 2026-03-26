@@ -19,6 +19,54 @@ export interface EmailFinderResult {
   notes: string | null;
 }
 
+// ─── Stage 0: Resolve organisation name from address ──────────────────────
+
+async function resolveNameFromAddress(address: string): Promise<string | null> {
+  const tavilyKey = process.env['TAVILY_API_KEY'];
+  if (!tavilyKey) return null;
+
+  try {
+    const response = await axios.post<{ results: { content: string; url: string }[] }>(
+      'https://api.tavily.com/search',
+      {
+        api_key: tavilyKey,
+        query: `"${address}" Australia organisation company`,
+        search_depth: 'basic',
+        max_results: 3,
+      }
+    );
+
+    const context = response.data.results
+      .map((r) => r.content)
+      .join('\n')
+      .slice(0, 1500);
+
+    if (!context) return null;
+
+    const apiKey = process.env['ANTHROPIC_API_KEY'];
+    if (!apiKey) return null;
+
+    const client = new Anthropic({ apiKey });
+    const res = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 128,
+      messages: [{
+        role: 'user',
+        content: `Based on these search results, what Australian organisation is located at or uses the address "${address}"?
+
+${context}
+
+Reply with ONLY the organisation name, nothing else. If unknown, reply with null.`,
+      }],
+    });
+
+    const name = res.content[0]?.type === 'text' ? res.content[0].text.trim() : null;
+    return name === 'null' || !name ? null : name;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Stage 1: Claude knowledge ─────────────────────────────────────────────
 
 async function askClaudeForEmail(senderName: string): Promise<EmailFinderResult> {
@@ -76,7 +124,7 @@ async function searchWebForEmail(senderName: string, senderAddress: string | nul
     return { email: null, confidence: 'none', source: 'web_search', notes: 'TAVILY_API_KEY not set' };
   }
 
-  const query = `"${senderName}" Australia undeliverable mail returns email address contact`;
+  const query = `"${senderName}" Australia undeliverable mail returns email address contact${senderAddress ? ` "${senderAddress}"` : ''}`;
 
   let searchResults = '';
   try {
@@ -172,33 +220,43 @@ export async function findSenderEmail(
   senderName: string | null,
   senderAddress: string | null
 ): Promise<EmailFinderResult> {
-  if (!senderName) {
-    return { email: null, confidence: 'none', source: 'none', notes: 'No sender name available' };
+  // We need at least a name or an address to search
+  if (!senderName && !senderAddress) {
+    return { email: null, confidence: 'none', source: 'none', notes: 'No sender info available' };
   }
 
-  console.log(`[emailFinder] Searching for email: ${senderName}`);
-
-  // Stage 1: Claude knowledge
-  const claudeResult = await askClaudeForEmail(senderName);
-  console.log(`[emailFinder] Claude result:`, claudeResult);
-
-  if (claudeResult.email && claudeResult.confidence === 'high') {
-    await cacheResult(senderName, claudeResult.email, 'claude_knowledge');
-    return claudeResult;
+  // If no name, try to identify the organisation from the address using Claude
+  let resolvedName = senderName;
+  if (!resolvedName && senderAddress) {
+    resolvedName = await resolveNameFromAddress(senderAddress);
+    console.log(`[emailFinder] Resolved name from address "${senderAddress}": ${resolvedName}`);
   }
 
-  // Stage 2: Web search via Tavily
-  const webResult = await searchWebForEmail(senderName, senderAddress);
+  const searchTerm = resolvedName ?? senderAddress ?? '';
+  console.log(`[emailFinder] Searching for email: ${searchTerm}`);
+
+  // Stage 1: Claude knowledge (only if we have a name)
+  if (resolvedName) {
+    const claudeResult = await askClaudeForEmail(resolvedName);
+    console.log(`[emailFinder] Claude result:`, claudeResult);
+
+    if (claudeResult.email && claudeResult.confidence === 'high') {
+      await cacheResult(resolvedName, claudeResult.email, 'claude_knowledge');
+      return claudeResult;
+    }
+  }
+
+  // Stage 2: Web search via Tavily (works with name or address)
+  const webResult = await searchWebForEmail(searchTerm, senderAddress);
   console.log(`[emailFinder] Web search result:`, webResult);
 
   if (webResult.email && webResult.confidence === 'high') {
-    await cacheResult(senderName, webResult.email, 'web_search');
+    await cacheResult(resolvedName ?? searchTerm, webResult.email, 'web_search');
     return webResult;
   }
 
   // Return best available even if low confidence (caller decides what to do)
   if (webResult.email) return webResult;
-  if (claudeResult.email) return claudeResult;
 
   return { email: null, confidence: 'none', source: 'none', notes: 'No email found after all stages' };
 }
