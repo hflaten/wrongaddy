@@ -74,6 +74,19 @@ async function sendEmail(params: {
   return { providerId: data.id };
 }
 
+// ─── Country normaliser (Lob requires ISO-3166 alpha-2) ────────────────────
+const COUNTRY_MAP: Record<string, string> = {
+  'australia': 'AU', 'AU': 'AU', 'AUS': 'AU',
+  'united states': 'US', 'usa': 'US', 'US': 'US',
+  'united kingdom': 'GB', 'uk': 'GB', 'GB': 'GB',
+  'new zealand': 'NZ', 'NZ': 'NZ',
+};
+
+function normaliseCountry(raw: string): string {
+  const key = raw.trim().toLowerCase();
+  return COUNTRY_MAP[key] ?? COUNTRY_MAP[raw.trim()] ?? raw.trim().toUpperCase().slice(0, 2);
+}
+
 // ─── Physical Letter via Lob ───────────────────────────────────────────────
 
 async function sendLetter(params: {
@@ -111,7 +124,7 @@ Please update your records accordingly.</p>
       address_city: params.toCity,
       address_state: params.toState,
       address_zip: params.toPostcode,
-      address_country: params.toCountry.toUpperCase(),
+      address_country: normaliseCountry(params.toCountry),
     },
     from: {
       name: 'WrongAddy',
