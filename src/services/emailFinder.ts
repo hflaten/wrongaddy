@@ -101,7 +101,8 @@ Rules:
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
+  const raw = response.content[0]?.type === 'text' ? response.content[0].text : '';
+  const text = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
   try {
     const result = JSON.parse(text) as { email: string | null; confidence: 'high' | 'low'; notes: string | null };
@@ -112,6 +113,7 @@ Rules:
       notes: result.notes,
     };
   } catch {
+    console.log(`[emailFinder] Claude knowledge raw response: ${raw}`);
     return { email: null, confidence: 'none', source: 'claude_knowledge', notes: 'Failed to parse Claude response' };
   }
 }
@@ -181,7 +183,8 @@ Rules:
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
+  const raw = response.content[0]?.type === 'text' ? response.content[0].text : '';
+  const text = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
   try {
     const result = JSON.parse(text) as { email: string | null; confidence: 'high' | 'low'; notes: string | null };
@@ -192,6 +195,7 @@ Rules:
       notes: result.notes,
     };
   } catch {
+    console.log(`[emailFinder] Web search raw response: ${raw}`);
     return { email: null, confidence: 'none', source: 'web_search', notes: 'Failed to parse Claude response' };
   }
 }
