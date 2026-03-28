@@ -12,19 +12,19 @@ app.use(express.urlencoded({ extended: true }));
 // ─── Routes ────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'wrongaddy', ts: new Date().toISOString() });
+  res.json({ status: 'ok', service: 'returnagent', ts: new Date().toISOString() });
 });
 
 app.get('/privacy', (_req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Privacy Policy — WrongAddy</title>
+<head><meta charset="UTF-8"><title>Privacy Policy — ReturnAgent</title>
 <style>body{font-family:sans-serif;max-width:760px;margin:60px auto;padding:0 24px;line-height:1.7;color:#222}h1{font-size:1.8rem}h2{font-size:1.2rem;margin-top:2rem}</style>
 </head>
 <body>
 <h1>Privacy Policy</h1>
 <p><strong>Last updated: 27 March 2026</strong></p>
-<p>WrongAddy ("we", "us") operates a mail redirection notification service. This policy explains how we collect, use, and protect personal information in accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).</p>
+<p>ReturnAgent ("we", "us") operates a mail redirection notification service. This policy explains how we collect, use, and protect personal information in accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).</p>
 
 <h2>1. Information We Collect</h2>
 <p>When a property manager photographs a misdelivered envelope and sends it to our WhatsApp number, we collect:</p>
@@ -49,23 +49,23 @@ app.get('/privacy', (_req, res) => {
 <p>You may request access to or correction of personal information we hold about you by contacting us at the address below.</p>
 
 <h2>6. Contact</h2>
-<p>For privacy enquiries: <a href="mailto:privacy@wrongaddy.com.au">privacy@wrongaddy.com.au</a></p>
+<p>For privacy enquiries: <a href="mailto:privacy@returnagent.com.au">privacy@returnagent.com.au</a></p>
 </body></html>`);
 });
 
 app.get('/terms', (_req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Terms of Service — WrongAddy</title>
+<head><meta charset="UTF-8"><title>Terms of Service — ReturnAgent</title>
 <style>body{font-family:sans-serif;max-width:760px;margin:60px auto;padding:0 24px;line-height:1.7;color:#222}h1{font-size:1.8rem}h2{font-size:1.2rem;margin-top:2rem}</style>
 </head>
 <body>
 <h1>Terms of Service</h1>
 <p><strong>Last updated: 27 March 2026</strong></p>
-<p>By using WrongAddy you agree to these terms.</p>
+<p>By using ReturnAgent you agree to these terms.</p>
 
 <h2>1. Service Description</h2>
-<p>WrongAddy provides a WhatsApp-based service that notifies original senders when mail is delivered to a property where the recipient no longer resides.</p>
+<p>ReturnAgent provides a WhatsApp-based service that notifies original senders when mail is delivered to a property where the recipient no longer resides.</p>
 
 <h2>2. Acceptable Use</h2>
 <p>You must only photograph and submit mail that has been physically delivered to a property you manage. Misuse of the service is prohibited.</p>
@@ -77,7 +77,7 @@ app.get('/terms', (_req, res) => {
 <p>These terms are governed by the laws of New South Wales, Australia.</p>
 
 <h2>5. Contact</h2>
-<p><a href="mailto:hello@wrongaddy.com.au">hello@wrongaddy.com.au</a></p>
+<p><a href="mailto:hello@returnagent.com.au">hello@returnagent.com.au</a></p>
 </body></html>`);
 });
 
@@ -86,7 +86,7 @@ app.use('/webhook', webhookRouter);
 // ─── Start ─────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
-  console.log(`WrongAddy server running on port ${PORT}`);
+  console.log(`ReturnAgent server running on port ${PORT}`);
 });
 
 export default app;
