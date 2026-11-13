@@ -5,4 +5,4 @@ dist/
 *.env.*.local
 .DS_Store
 *.js.map
-wrongaddy-legal-compliance.md
+/wrongaddy-legal-compliance.md
